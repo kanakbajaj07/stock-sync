@@ -38,8 +38,8 @@ const KpiCard = ({ label, value, icon: Icon, color = 'blue' }) => {
           <p className="text-sm text-gray-600 mb-1">{label}</p>
           <p className="text-3xl font-bold text-gray-900">
             {typeof value === 'number' && label.toLowerCase().includes('value')
-              ? `₹${value.toLocaleString()}`
-              : value.toLocaleString()}
+              ? `₹${(value || 0).toLocaleString()}`
+              : (value || 0).toLocaleString()}
           </p>
         </div>
         <div className={`w-12 h-12 ${colorClasses[color]} rounded-xl flex items-center justify-center`}>

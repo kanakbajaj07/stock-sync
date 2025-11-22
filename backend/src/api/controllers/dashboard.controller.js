@@ -30,9 +30,25 @@ exports.getKPIs = async (req, res, next) => {
       stockService.getStockLedger({ limit: 10 })
     ]);
 
-    // Calculate total stock value (you can enhance this with pricing data)
+    // Calculate stock values
     const stockLevels = await stockService.getStockLevels();
-    const totalStockItems = stockLevels.reduce((sum, stock) => sum + stock.quantity, 0);
+    
+    const totalStockItems = stockLevels.reduce((sum, stock) => sum + stock.onHandQuantity, 0);
+    
+    const totalStockValue = stockLevels.reduce((sum, stock) => {
+      const cost = stock.product.unitCost || 0;
+      return sum + (stock.onHandQuantity * cost);
+    }, 0);
+
+    const reservedValue = stockLevels.reduce((sum, stock) => {
+      const cost = stock.product.unitCost || 0;
+      return sum + (stock.reservedQuantity * cost);
+    }, 0);
+
+    const availableValue = stockLevels.reduce((sum, stock) => {
+      const cost = stock.product.unitCost || 0;
+      return sum + (stock.availableQuantity * cost);
+    }, 0);
 
     res.status(200).json({
       success: true,
@@ -43,6 +59,9 @@ exports.getKPIs = async (req, res, next) => {
         pendingDeliveries,
         lowStockCount: lowStockAlerts.length,
         totalStockItems: Math.round(totalStockItems),
+        totalStockValue,
+        reservedValue,
+        availableValue,
         recentMoves
       }
     });
@@ -50,4 +69,3 @@ exports.getKPIs = async (req, res, next) => {
     next(error);
   }
 };
-

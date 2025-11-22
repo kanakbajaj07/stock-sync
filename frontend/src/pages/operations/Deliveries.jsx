@@ -18,8 +18,7 @@ import {
   Phone,
   Mail,
   FileText,
-  CheckCircle,
-  XCircle,
+  Check, // Changed from CheckCircle
   Clock,
   AlertCircle,
   Printer,
@@ -270,14 +269,14 @@ function DeliveriesList({ deliveries, onValidate, onCancel }) {
                       className="p-1 text-green-600 hover:bg-green-50 rounded"
                       title="Validate"
                     >
-                      <CheckCircle size={18} />
+                      <Check size={18} />
                     </button>
                     <button
                       onClick={() => onCancel(delivery.id)}
                       className="p-1 text-red-600 hover:bg-red-50 rounded"
                       title="Cancel"
                     >
-                      <XCircle size={18} />
+                      <X size={18} />
                     </button>
                   </div>
                 )}

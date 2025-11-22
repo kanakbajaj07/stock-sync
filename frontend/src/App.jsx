@@ -13,6 +13,7 @@ import Login from './pages/auth/Login';
 import Register from './pages/auth/Register';
 import Dashboard from './pages/dashboard/Dashboard';
 import Stock from './pages/stock/Stock';
+import Products from './pages/products/Products';
 import MoveHistory from './pages/history/MoveHistory';
 import Receipts from './pages/operations/Receipts';
 import Deliveries from './pages/operations/Deliveries';
@@ -83,12 +84,12 @@ function App() {
           } 
         />
         
-        {/* Products - Admin & Manager only (Maps to Stock page for now or separate page if exists) */}
+        {/* Products - Admin & Manager only */}
         <Route 
           path="products" 
           element={
             <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
-              <Stock />
+              <Products />
             </RoleProtectedRoute>
           } 
         />

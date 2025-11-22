@@ -1,13 +1,11 @@
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../../stores/authStore';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
-  Package, 
   TrendingUp, 
   TrendingDown, 
   ArrowLeftRight,
   BarChart3,
-  LogOut,
+  Settings,
   Menu,
   X
 } from 'lucide-react';
@@ -15,18 +13,10 @@ import { useState } from 'react';
 
 const MainLayout = () => {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Products', href: '/products', icon: Package },
     { 
       name: 'Operations', 
       icon: ArrowLeftRight,
@@ -40,10 +30,11 @@ const MainLayout = () => {
       name: 'Inventory', 
       icon: BarChart3,
       children: [
-        { name: 'Stock Levels', href: '/inventory/stock-levels' },
+        { name: 'Stock Levels', href: '/stock' },
         { name: 'Move History', href: '/inventory/ledger' },
       ]
     },
+    { name: 'Settings', href: '/settings', icon: Settings },
   ];
 
   const isActive = (path) => location.pathname === path;
@@ -125,66 +116,23 @@ const MainLayout = () => {
               </div>
             ))}
           </nav>
-
-          {/* User info and logout */}
-          <div className="p-4 border-t">
-            <div className="flex items-center mb-3">
-              <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
-                <span className="text-primary-600 font-semibold">
-                  {user?.firstName?.[0]}{user?.lastName?.[0]}
-                </span>
-              </div>
-              <div className="ml-3 flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-700 truncate">
-                  {user?.firstName} {user?.lastName}
-                </p>
-                <p className="text-xs text-gray-500 truncate">{user?.role}</p>
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center justify-center px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              <LogOut size={16} className="mr-2" />
-              Logout
-            </button>
-          </div>
         </div>
       </aside>
 
       {/* Main content */}
       <div className="lg:ml-64">
-        {/* Top bar */}
-        <header className="h-16 bg-white shadow-sm flex items-center justify-between px-6">
+        {/* Mobile menu button */}
+        <div className="lg:hidden fixed top-4 left-4 z-10">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
+            className="p-2 bg-white rounded-lg shadow-lg hover:bg-gray-100"
           >
             <Menu size={24} />
           </button>
-          
-          <div className="flex items-center">
-            <h2 className="text-lg font-semibold text-gray-800">
-              {navigation.find(n => isActive(n.href))?.name || 
-               navigation.flatMap(n => n.children || []).find(c => isActive(c.href))?.name || 
-               'StockMaster IMS'}
-            </h2>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600 hidden sm:block">
-              {new Date().toLocaleDateString('en-US', { 
-                weekday: 'short', 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
-              })}
-            </span>
-          </div>
-        </header>
+        </div>
 
         {/* Page content */}
-        <main className="p-6">
+        <main>
           <Outlet />
         </main>
       </div>

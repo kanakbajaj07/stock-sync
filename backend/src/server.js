@@ -8,6 +8,7 @@ const rateLimit = require('express-rate-limit');
 
 // Import routes
 const authRoutes = require('./api/routes/auth.routes');
+const userRoutes = require('./api/routes/user.routes');
 const productRoutes = require('./api/routes/product.routes');
 const locationRoutes = require('./api/routes/location.routes');
 const operationRoutes = require('./api/routes/operation.routes');
@@ -71,6 +72,7 @@ app.get('/health', (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/operations', operationRoutes);

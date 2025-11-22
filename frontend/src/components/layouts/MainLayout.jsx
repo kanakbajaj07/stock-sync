@@ -100,7 +100,7 @@ const MainLayout = () => {
       name: 'Settings',
       href: '/settings',
       icon: 'Settings',
-      roles: ['ADMIN']
+      roles: ['ADMIN', 'MANAGER']
     }
   ];
 

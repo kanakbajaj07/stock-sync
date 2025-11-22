@@ -164,7 +164,7 @@ export const NAVIGATION_CONFIG = [
     name: 'Settings',
     href: '/settings',
     icon: 'Settings',
-    roles: [USER_ROLES.ADMIN],
+    roles: [USER_ROLES.ADMIN, USER_ROLES.MANAGER],
     badge: null,
   },
 ];

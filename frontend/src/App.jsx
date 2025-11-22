@@ -117,11 +117,11 @@ function App() {
           } 
         />
 
-        {/* Settings - Admin only */}
+        {/* Settings - Admin & Manager */}
         <Route 
           path="settings" 
           element={
-            <RoleProtectedRoute allowedRoles={['ADMIN']}>
+            <RoleProtectedRoute allowedRoles={['ADMIN', 'MANAGER']}>
               <Settings />
             </RoleProtectedRoute>
           } 

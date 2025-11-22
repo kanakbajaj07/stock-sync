@@ -1,5 +1,9 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { inventoryService } from '../../services/inventoryService';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
+import toast from 'react-hot-toast';
 import { 
   LayoutDashboard, 
   TrendingUp, 
@@ -14,33 +18,7 @@ import {
   ChevronDown,
   ChevronRight
 } from 'lucide-react';
-
-// TypeScript types (for reference/documentation)
-// type StockRow = {
-//   productName: string;
-//   skuCode: string;
-//   barcode: string;
-//   category: string;
-//   brand: string;
-//   unitCost: number;
-//   sellingPrice: number;
-//   onHandQuantity: number;
-//   reservedQuantity: number;
-//   availableQuantity: number;
-//   totalValue: number;
-//   uom: string;
-//   reorderLevel: number;
-//   location: string;
-//   lastCountDate: string;
-//   isActive: boolean;
-//   stockStatus: "In Stock" | "Low Stock" | "Out of Stock";
-// };
-//
-// type StockPageProps = {
-//   onNavigate?: (route: string) => void;
-//   rows?: StockRow[];
-//   onStockUpdate?: (row: StockRow) => void;
-// };
+import { format } from 'date-fns';
 
 // Helper function to compute stock status
 const computeStockStatus = (onHand, reorderLevel) => {
@@ -116,24 +94,16 @@ const EditStockModal = ({ row, onSave, onClose }) => {
   const [formData, setFormData] = useState({
     onHandQuantity: row.onHandQuantity,
     reservedQuantity: row.reservedQuantity,
-    reorderLevel: row.reorderLevel,
-    location: row.location,
+    // reorderLevel is on Product, location is fixed for this record
   });
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Compute derived fields
-    const availableQuantity = formData.onHandQuantity - formData.reservedQuantity;
-    const totalValue = formData.onHandQuantity * row.unitCost;
-    const stockStatus = computeStockStatus(formData.onHandQuantity, formData.reorderLevel);
-    
+    // Available quantity will be calculated on backend or derived
     const updatedRow = {
       ...row,
       ...formData,
-      availableQuantity,
-      totalValue,
-      stockStatus,
     };
     
     onSave(updatedRow);
@@ -168,8 +138,8 @@ const EditStockModal = ({ row, onSave, onClose }) => {
               <span className="ml-2 font-medium">{row.brand}</span>
             </div>
             <div>
-              <span className="text-gray-600">Unit Cost:</span>
-              <span className="ml-2 font-medium">₹{row.unitCost.toLocaleString()}</span>
+              <span className="text-gray-600">Location:</span>
+              <span className="ml-2 font-medium">{row.location}</span>
             </div>
           </div>
         </div>
@@ -204,33 +174,6 @@ const EditStockModal = ({ row, onSave, onClose }) => {
                 required
               />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Reorder Level *
-              </label>
-              <input
-                type="number"
-                value={formData.reorderLevel}
-                onChange={(e) => setFormData({ ...formData, reorderLevel: parseInt(e.target.value) || 0 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                min="0"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Location *
-              </label>
-              <input
-                type="text"
-                value={formData.location}
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                required
-              />
-            </div>
           </div>
 
           {/* Computed Values Preview */}
@@ -248,11 +191,11 @@ const EditStockModal = ({ row, onSave, onClose }) => {
               <div>
                 <span className="text-gray-600">Status:</span>
                 <span className={`ml-2 px-2 py-0.5 rounded text-xs font-medium ${
-                  computeStockStatus(formData.onHandQuantity, formData.reorderLevel) === 'Out of Stock' ? 'bg-red-100 text-red-800' :
-                  computeStockStatus(formData.onHandQuantity, formData.reorderLevel) === 'Low Stock' ? 'bg-yellow-100 text-yellow-800' :
+                  computeStockStatus(formData.onHandQuantity, row.reorderLevel) === 'Out of Stock' ? 'bg-red-100 text-red-800' :
+                  computeStockStatus(formData.onHandQuantity, row.reorderLevel) === 'Low Stock' ? 'bg-yellow-100 text-yellow-800' :
                   'bg-green-100 text-green-800'
                 }`}>
-                  {computeStockStatus(formData.onHandQuantity, formData.reorderLevel)}
+                  {computeStockStatus(formData.onHandQuantity, row.reorderLevel)}
                 </span>
               </div>
             </div>
@@ -417,141 +360,47 @@ const StockTable = ({ rows, onEdit }) => {
 };
 
 // Main Stock Page Component
-const Stock = ({ onNavigate, rows, onStockUpdate }) => {
+const Stock = () => {
   const navigate = useNavigate();
-
-  // Mock data - will be replaced with API data later
-  const mockRows = rows || [
-    {
-      productName: 'Dell Laptop XPS 15',
-      skuCode: 'LAPTOP-001',
-      barcode: '7501234567890',
-      category: 'Electronics',
-      brand: 'Dell',
-      unitCost: 75000,
-      sellingPrice: 95000,
-      onHandQuantity: 10,
-      reservedQuantity: 2,
-      availableQuantity: 8,
-      totalValue: 750000,
-      uom: 'pcs',
-      reorderLevel: 5,
-      location: 'Rack A-01',
-      lastCountDate: '2025-11-20',
-      isActive: true,
-      stockStatus: 'In Stock',
-    },
-    {
-      productName: 'HP Printer LaserJet Pro',
-      skuCode: 'PRINT-045',
-      barcode: '7501234567891',
-      category: 'Electronics',
-      brand: 'HP',
-      unitCost: 25000,
-      sellingPrice: 32000,
-      onHandQuantity: 3,
-      reservedQuantity: 0,
-      availableQuantity: 3,
-      totalValue: 75000,
-      uom: 'pcs',
-      reorderLevel: 5,
-      location: 'Rack B-12',
-      lastCountDate: '2025-11-21',
-      isActive: true,
-      stockStatus: 'Low Stock',
-    },
-    {
-      productName: 'Office Chair Executive',
-      skuCode: 'CHAIR-078',
-      barcode: '7501234567892',
-      category: 'Furniture',
-      brand: 'Ergonomic Plus',
-      unitCost: 8000,
-      sellingPrice: 12000,
-      onHandQuantity: 0,
-      reservedQuantity: 0,
-      availableQuantity: 0,
-      totalValue: 0,
-      uom: 'pcs',
-      reorderLevel: 10,
-      location: 'Rack C-03',
-      lastCountDate: '2025-11-22',
-      isActive: true,
-      stockStatus: 'Out of Stock',
-    },
-    {
-      productName: 'Samsung Monitor 27" 4K',
-      skuCode: 'MON-102',
-      barcode: '7501234567893',
-      category: 'Electronics',
-      brand: 'Samsung',
-      unitCost: 35000,
-      sellingPrice: 45000,
-      onHandQuantity: 15,
-      reservedQuantity: 3,
-      availableQuantity: 12,
-      totalValue: 525000,
-      uom: 'pcs',
-      reorderLevel: 8,
-      location: 'Rack A-08',
-      lastCountDate: '2025-11-19',
-      isActive: true,
-      stockStatus: 'In Stock',
-    },
-    {
-      productName: 'Conference Table Large',
-      skuCode: 'TABLE-203',
-      barcode: '7501234567894',
-      category: 'Furniture',
-      brand: 'Office Pro',
-      unitCost: 45000,
-      sellingPrice: 60000,
-      onHandQuantity: 6,
-      reservedQuantity: 1,
-      availableQuantity: 5,
-      totalValue: 270000,
-      uom: 'pcs',
-      reorderLevel: 3,
-      location: 'Rack D-05',
-      lastCountDate: '2025-11-18',
-      isActive: true,
-      stockStatus: 'In Stock',
-    },
-    {
-      productName: 'Wireless Keyboard & Mouse',
-      skuCode: 'COMBO-305',
-      barcode: '7501234567895',
-      category: 'Electronics',
-      brand: 'Logitech',
-      unitCost: 2500,
-      sellingPrice: 3500,
-      onHandQuantity: 25,
-      reservedQuantity: 5,
-      availableQuantity: 20,
-      totalValue: 62500,
-      uom: 'sets',
-      reorderLevel: 15,
-      location: 'Rack B-09',
-      lastCountDate: '2025-11-22',
-      isActive: true,
-      stockStatus: 'In Stock',
-    },
-  ];
-
-  const [stockData, setStockData] = useState(mockRows);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [editingRow, setEditingRow] = useState(null);
 
-  // Navigation handler
-  const handleNavigate = (route) => {
-    if (onNavigate) {
-      onNavigate(route);
-    } else {
-      navigate(route);
-    }
-  };
+  // Fetch Stock Levels
+  const { data: stockResponse, isLoading } = useQuery({
+    queryKey: ['stock-levels'],
+    queryFn: () => inventoryService.getStockLevels(),
+  });
+
+  // Transform API data to display format
+  const stockData = useMemo(() => {
+    if (!stockResponse?.data) return [];
+    
+    return stockResponse.data.map(item => ({
+      id: item.id,
+      productId: item.productId,
+      locationId: item.locationId,
+      productName: item.product.name,
+      skuCode: item.product.skuCode,
+      barcode: item.product.barcode || '-',
+      category: item.product.category,
+      brand: item.product.brand || '-',
+      unitCost: item.product.unitCost || 0,
+      sellingPrice: item.product.sellingPrice || 0,
+      onHandQuantity: item.onHandQuantity,
+      reservedQuantity: item.reservedQuantity,
+      availableQuantity: item.availableQuantity,
+      totalValue: (item.onHandQuantity * (item.product.unitCost || 0)),
+      uom: item.product.uom,
+      reorderLevel: item.product.reorderLevel || 0,
+      location: item.location.name,
+      lastCountDate: item.lastCountDate,
+      isActive: item.product.isActive,
+      stockStatus: computeStockStatus(item.onHandQuantity, item.product.reorderLevel || 0),
+    }));
+  }, [stockResponse]);
 
   // Get unique categories
   const categories = useMemo(() => {
@@ -572,21 +421,20 @@ const Stock = ({ onNavigate, rows, onStockUpdate }) => {
     });
   }, [stockData, searchQuery, categoryFilter, statusFilter]);
 
-  // Update stock handler
+  // Mock update mutation (since we don't have direct edit API yet, mostly handled via operations)
+  // However, for "Adjustments", we might need an endpoint. 
+  // For now, I'll just show a toast as "Stock updated" implies an Adjustment operation usually.
   const handleUpdateStock = (updatedRow) => {
-    const updatedData = stockData.map(row => 
-      row.skuCode === updatedRow.skuCode ? updatedRow : row
-    );
-
-    setStockData(updatedData);
+    // In a real app, this would call an adjustment API
+    // updateStockMutation.mutate(updatedRow);
+    
+    toast.success('Stock update feature coming soon (Use Adjustments in Operations)');
     setEditingRow(null);
-
-    // Call parent callback if provided
-    onStockUpdate?.(updatedRow);
-
-    // Log for debugging
-    console.log('Stock updated:', updatedRow);
   };
+
+  if (isLoading) {
+    return <LoadingSpinner fullScreen />;
+  }
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">

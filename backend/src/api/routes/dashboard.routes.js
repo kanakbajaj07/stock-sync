@@ -8,10 +8,9 @@ router.use(protect);
 
 /**
  * @route   GET /api/dashboard/kpis
- * @desc    Get dashboard KPIs
+ * @desc    Get dashboard KPIs and charts
  * @access  Private
  */
 router.get('/kpis', dashboardController.getKPIs);
 
 module.exports = router;
-

@@ -102,6 +102,10 @@ class StockService {
 
     if (existingStock) {
       // Update existing stock
+      // New OnHand = Old OnHand + Quantity
+      // New Available = New OnHand - Reserved
+      const newOnHand = existingStock.onHandQuantity + quantity;
+      
       await tx.stockLevel.update({
         where: {
           productId_locationId: {
@@ -110,7 +114,8 @@ class StockService {
           }
         },
         data: {
-          quantity: existingStock.quantity + quantity
+          onHandQuantity: newOnHand,
+          availableQuantity: newOnHand - existingStock.reservedQuantity
         }
       });
     } else {
@@ -119,7 +124,9 @@ class StockService {
         data: {
           productId,
           locationId,
-          quantity
+          onHandQuantity: quantity,
+          availableQuantity: quantity, // Initial available = onHand (reserved is 0 default)
+          reservedQuantity: 0
         }
       });
     }
@@ -143,11 +150,15 @@ class StockService {
       throw new Error(`No stock found for product at location`);
     }
 
-    if (existingStock.quantity < quantity) {
+    if (existingStock.onHandQuantity < quantity) {
       throw new Error(
-        `Insufficient stock. Available: ${existingStock.quantity}, Required: ${quantity}`
+        `Insufficient stock. Available: ${existingStock.onHandQuantity}, Required: ${quantity}`
       );
     }
+
+    // New OnHand = Old OnHand - Quantity
+    // New Available = New OnHand - Reserved
+    const newOnHand = existingStock.onHandQuantity - quantity;
 
     await tx.stockLevel.update({
       where: {
@@ -157,7 +168,8 @@ class StockService {
         }
       },
       data: {
-        quantity: existingStock.quantity - quantity
+        onHandQuantity: newOnHand,
+        availableQuantity: newOnHand - existingStock.reservedQuantity
       }
     });
   }
@@ -172,7 +184,7 @@ class StockService {
     if (productId) where.productId = productId;
     if (locationId) where.locationId = locationId;
     if (minQuantity !== undefined) {
-      where.quantity = { gte: minQuantity };
+      where.onHandQuantity = { gte: minQuantity };
     }
 
     return await prisma.stockLevel.findMany({
@@ -238,10 +250,9 @@ class StockService {
 
     // Filter for products below reorder level
     return stockLevels.filter(stock => {
-      return stock.product.reorderLevel && stock.quantity <= stock.product.reorderLevel;
+      return stock.product.reorderLevel && stock.onHandQuantity <= stock.product.reorderLevel;
     });
   }
 }
 
 module.exports = new StockService();
-

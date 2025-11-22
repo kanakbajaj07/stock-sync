@@ -1,5 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { inventoryService } from '../../services/inventoryService';
+import LoadingSpinner from '../../components/common/LoadingSpinner';
 import { 
   LayoutDashboard, 
   TrendingUp, 
@@ -16,32 +19,6 @@ import {
 } from 'lucide-react';
 import { format, parseISO, isWithinInterval } from 'date-fns';
 
-// TypeScript types (for reference/documentation)
-// type MoveHistoryRow = {
-//   documentNumber: string;
-//   createdAt: string;
-//   documentType: "RECEIPT" | "DELIVERY" | "INTERNAL_TRANSFER" | "ADJUSTMENT";
-//   productName: string;
-//   skuCode: string;
-//   sourceLocation: string | null;
-//   destinationLocation: string | null;
-//   contactName: string | null;
-//   quantity: number;
-//   unitCost: number;
-//   totalValue: number;
-//   status: "DRAFT" | "VALIDATED" | "CANCELLED";
-//   priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
-//   createdBy: string;
-//   validatedBy: string | null;
-//   validatedAt: string | null;
-//   notes: string;
-// };
-//
-// type MoveHistoryPageProps = {
-//   onNavigate?: (route: string) => void;
-//   rows?: MoveHistoryRow[];
-// };
-
 // Document Type Badge
 const DocumentTypeBadge = ({ type }) => {
   const colors = {
@@ -53,7 +30,7 @@ const DocumentTypeBadge = ({ type }) => {
 
   return (
     <span className={`px-2 py-1 rounded text-xs font-medium ${colors[type]}`}>
-      {type.replace('_', ' ')}
+      {type?.replace('_', ' ')}
     </span>
   );
 };
@@ -83,7 +60,7 @@ const PriorityBadge = ({ priority }) => {
   };
 
   return (
-    <span className={`px-2 py-1 rounded text-xs font-medium ${colors[priority]}`}>
+    <span className={`px-2 py-1 rounded text-xs font-medium ${colors[priority] || colors['NORMAL']}`}>
       {priority}
     </span>
   );
@@ -245,11 +222,11 @@ const DetailModal = ({ row, onClose }) => {
             </div>
             <div>
               <label className="text-xs text-gray-600">Unit Cost</label>
-              <p className="font-medium">₹{row.unitCost.toLocaleString()}</p>
+              <p className="font-medium">₹{(row.unitCost || 0).toLocaleString()}</p>
             </div>
             <div>
               <label className="text-xs text-gray-600">Total Value</label>
-              <p className="font-semibold text-green-600">₹{row.totalValue.toLocaleString()}</p>
+              <p className="font-semibold text-green-600">₹{(row.totalValue || 0).toLocaleString()}</p>
             </div>
           </div>
         </div>
@@ -281,10 +258,12 @@ const DetailModal = ({ row, onClose }) => {
               <label className="text-xs text-gray-600">Created By</label>
               <p className="font-medium">{row.createdBy}</p>
             </div>
-            <div>
-              <label className="text-xs text-gray-600">Validated By</label>
-              <p className="font-medium">{row.validatedBy || 'N/A'}</p>
-            </div>
+            {row.validatedBy && (
+              <div>
+                <label className="text-xs text-gray-600">Validated By</label>
+                <p className="font-medium">{row.validatedBy}</p>
+              </div>
+            )}
             {row.validatedAt && (
               <div className="col-span-2">
                 <label className="text-xs text-gray-600">Validated At</label>
@@ -360,7 +339,7 @@ const ListView = ({ rows, onRowClick }) => {
                   <td className="px-4 py-3 text-sm text-gray-600">{row.destinationLocation || '-'}</td>
                   <td className="px-4 py-3 text-sm text-gray-600">{row.contactName || '-'}</td>
                   <td className="px-4 py-3 text-sm text-right font-medium">{row.quantity}</td>
-                  <td className="px-4 py-3 text-sm text-right font-medium">₹{row.totalValue.toLocaleString()}</td>
+                  <td className="px-4 py-3 text-sm text-right font-medium">₹{(row.totalValue || 0).toLocaleString()}</td>
                   <td className="px-4 py-3 text-center">
                     <StatusBadge status={row.status} />
                   </td>
@@ -404,7 +383,7 @@ const KanbanView = ({ rows, onRowClick }) => {
       <p className="text-xs text-gray-500 font-mono mb-2">{row.skuCode}</p>
       <div className="flex items-center justify-between text-xs text-gray-600">
         <span>Qty: {row.quantity}</span>
-        <span>₹{row.totalValue.toLocaleString()}</span>
+        <span>₹{(row.totalValue || 0).toLocaleString()}</span>
       </div>
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
         <span className="text-xs text-gray-500">{format(parseISO(row.createdAt), 'MMM dd')}</span>
@@ -473,128 +452,8 @@ const KanbanView = ({ rows, onRowClick }) => {
 };
 
 // Main Move History Page Component
-const MoveHistory = ({ onNavigate, rows }) => {
+const MoveHistory = () => {
   const navigate = useNavigate();
-
-  // Mock data
-  const mockRows = rows || [
-    {
-      documentNumber: 'RCP-2025-001',
-      createdAt: '2025-11-22T10:30:00Z',
-      documentType: 'RECEIPT',
-      productName: 'Dell Laptop XPS 15',
-      skuCode: 'LAPTOP-001',
-      sourceLocation: null,
-      destinationLocation: 'Warehouse A',
-      contactName: 'Tech Suppliers Inc.',
-      quantity: 10,
-      unitCost: 75000,
-      totalValue: 750000,
-      status: 'VALIDATED',
-      priority: 'HIGH',
-      createdBy: 'John Doe',
-      validatedBy: 'Jane Manager',
-      validatedAt: '2025-11-22T11:00:00Z',
-      notes: 'Bulk order for Q4 inventory replenishment',
-    },
-    {
-      documentNumber: 'DEL-2025-089',
-      createdAt: '2025-11-21T14:15:00Z',
-      documentType: 'DELIVERY',
-      productName: 'Office Chair Executive',
-      skuCode: 'CHAIR-078',
-      sourceLocation: 'Warehouse A',
-      destinationLocation: null,
-      contactName: 'ABC Corporation',
-      quantity: 25,
-      unitCost: 8000,
-      totalValue: 200000,
-      status: 'DRAFT',
-      priority: 'NORMAL',
-      createdBy: 'Sarah Smith',
-      validatedBy: null,
-      validatedAt: null,
-      notes: 'Customer order #12345',
-    },
-    {
-      documentNumber: 'TRF-2025-045',
-      createdAt: '2025-11-20T09:00:00Z',
-      documentType: 'INTERNAL_TRANSFER',
-      productName: 'Samsung Monitor 27" 4K',
-      skuCode: 'MON-102',
-      sourceLocation: 'Warehouse A',
-      destinationLocation: 'Warehouse B',
-      contactName: null,
-      quantity: 5,
-      unitCost: 35000,
-      totalValue: 175000,
-      status: 'VALIDATED',
-      priority: 'URGENT',
-      createdBy: 'Mike Johnson',
-      validatedBy: 'Jane Manager',
-      validatedAt: '2025-11-20T10:30:00Z',
-      notes: 'Transfer to regional warehouse for faster delivery',
-    },
-    {
-      documentNumber: 'ADJ-2025-012',
-      createdAt: '2025-11-19T16:45:00Z',
-      documentType: 'ADJUSTMENT',
-      productName: 'HP Printer LaserJet Pro',
-      skuCode: 'PRINT-045',
-      sourceLocation: 'Warehouse A',
-      destinationLocation: 'Warehouse A',
-      contactName: null,
-      quantity: -2,
-      unitCost: 25000,
-      totalValue: 50000,
-      status: 'VALIDATED',
-      priority: 'LOW',
-      createdBy: 'Tom Brown',
-      validatedBy: 'Jane Manager',
-      validatedAt: '2025-11-19T17:00:00Z',
-      notes: 'Stock count discrepancy - damaged units removed',
-    },
-    {
-      documentNumber: 'RCP-2025-002',
-      createdAt: '2025-11-18T11:20:00Z',
-      documentType: 'RECEIPT',
-      productName: 'Wireless Keyboard & Mouse',
-      skuCode: 'COMBO-305',
-      sourceLocation: null,
-      destinationLocation: 'Warehouse A',
-      contactName: 'Tech Distributors Ltd.',
-      quantity: 50,
-      unitCost: 2500,
-      totalValue: 125000,
-      status: 'VALIDATED',
-      priority: 'NORMAL',
-      createdBy: 'Lisa Davis',
-      validatedBy: 'Jane Manager',
-      validatedAt: '2025-11-18T12:00:00Z',
-      notes: '',
-    },
-    {
-      documentNumber: 'DEL-2025-090',
-      createdAt: '2025-11-17T13:30:00Z',
-      documentType: 'DELIVERY',
-      productName: 'Conference Table Large',
-      skuCode: 'TABLE-203',
-      sourceLocation: 'Warehouse A',
-      destinationLocation: null,
-      contactName: 'XYZ Enterprises',
-      quantity: 3,
-      unitCost: 45000,
-      totalValue: 135000,
-      status: 'CANCELLED',
-      priority: 'HIGH',
-      createdBy: 'Mark Wilson',
-      validatedBy: null,
-      validatedAt: null,
-      notes: 'Cancelled by customer - payment issue',
-    },
-  ];
-
-  const [moveData] = useState(mockRows);
   const [viewMode, setViewMode] = useState('list'); // 'list' or 'kanban'
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFrom, setDateFrom] = useState('');
@@ -604,14 +463,36 @@ const MoveHistory = ({ onNavigate, rows }) => {
   const [priorityFilter, setPriorityFilter] = useState('ALL');
   const [selectedRow, setSelectedRow] = useState(null);
 
-  // Navigation handler
-  const handleNavigate = (route) => {
-    if (onNavigate) {
-      onNavigate(route);
-    } else {
-      navigate(route);
-    }
-  };
+  // Fetch Data
+  const { data: historyResponse, isLoading } = useQuery({
+    queryKey: ['move-history'],
+    queryFn: () => inventoryService.getStockLedger(),
+  });
+
+  // Transform Data
+  const moveData = useMemo(() => {
+    if (!historyResponse?.data) return [];
+    return historyResponse.data.map(item => ({
+      id: item.id,
+      documentNumber: item.documentNumber || '-',
+      createdAt: item.createdAt,
+      documentType: item.documentType,
+      productName: item.product.name,
+      skuCode: item.product.skuCode,
+      sourceLocation: item.sourceLocation?.name || '-',
+      destinationLocation: item.destinationLocation?.name || '-',
+      contactName: item.contactName || '-',
+      quantity: item.quantity,
+      unitCost: item.product.unitCost || 0,
+      totalValue: (item.quantity * (item.product.unitCost || 0)),
+      status: item.status,
+      priority: item.priority || 'NORMAL',
+      createdBy: `${item.user?.firstName} ${item.user?.lastName}`,
+      validatedBy: item.validatedBy || null,
+      validatedAt: item.validatedAt || null,
+      notes: item.notes || '',
+    }));
+  }, [historyResponse]);
 
   // Filter data
   const filteredData = useMemo(() => {
@@ -648,6 +529,8 @@ const MoveHistory = ({ onNavigate, rows }) => {
       return matchesSearch && matchesDate && matchesType && matchesStatus && matchesPriority;
     });
   }, [moveData, searchQuery, dateFrom, dateTo, typeFilter, statusFilter, priorityFilter]);
+
+  if (isLoading) return <LoadingSpinner fullScreen />;
 
   return (
     <div className="min-h-screen bg-gray-100 p-4 md:p-6">

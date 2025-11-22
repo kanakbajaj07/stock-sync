@@ -8,5 +8,12 @@ export const dashboardService = {
     const response = await api.get('/dashboard/kpis');
     return response.data;
   },
-};
 
+  /**
+   * Get dashboard analytics
+   */
+  getAnalytics: async () => {
+    const response = await api.get('/dashboard/analytics');
+    return response.data;
+  },
+};

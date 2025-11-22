@@ -1,11 +1,17 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../stores/authStore';
 import { 
   LayoutDashboard, 
+  Package, 
   TrendingUp, 
   TrendingDown, 
   ArrowLeftRight,
   BarChart3,
+  History,
+  Users,
+  FileText,
   Settings,
+  LogOut,
   Menu,
   X
 } from 'lucide-react';
@@ -15,11 +21,50 @@ import { useDeviceDetection } from '../../hooks/useDeviceDetection';
 
 const MainLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuthStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { isMobile } = useDeviceDetection();
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  // Icon mapping
+  const iconMap = {
+    LayoutDashboard,
+    Package,
+    TrendingUp,
+    TrendingDown,
+    ArrowLeftRight,
+    BarChart3,
+    History,
+    Users,
+    FileText,
+    Settings,
+  };
+
+  // Full navigation configuration
   const allNavigation = [
-    { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { 
+      name: 'Dashboard', 
+      href: '/dashboard', 
+      icon: 'LayoutDashboard',
+      roles: ['ADMIN', 'MANAGER', 'STAFF']
+    },
+    { 
+      name: 'Products', 
+      href: '/products', 
+      icon: 'Package',
+      roles: ['ADMIN', 'MANAGER']
+    },
+    { 
+      name: 'Stock', 
+      href: '/stock', 
+      icon: 'BarChart3',
+      roles: ['ADMIN', 'MANAGER', 'STAFF']
+    },
     { 
       name: 'Operations', 
       icon: 'ArrowLeftRight',
@@ -46,14 +91,17 @@ const MainLayout = () => {
       ]
     },
     { 
-      name: 'Inventory', 
-      icon: BarChart3,
-      children: [
-        { name: 'Stock Levels', href: '/stock' },
-        { name: 'Move History', href: '/inventory/ledger' },
-      ]
+      name: 'Move History', 
+      href: '/inventory/ledger', 
+      icon: 'History',
+      roles: ['ADMIN', 'MANAGER']
     },
-    { name: 'Settings', href: '/settings', icon: Settings },
+    {
+      name: 'Settings',
+      href: '/settings',
+      icon: 'Settings',
+      roles: ['ADMIN', 'MANAGER']
+    }
   ];
 
   // Filter navigation based on user role
@@ -148,23 +196,68 @@ const MainLayout = () => {
               );
             })}
           </nav>
+
+          {/* User info and logout */}
+          <div className="p-4 border-t">
+            <div className="flex items-center mb-3">
+              <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
+                <span className="text-primary-600 font-semibold text-sm">
+                  {user?.firstName?.[0]}{user?.lastName?.[0]}
+                </span>
+              </div>
+              <div className="ml-3 flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-700 truncate">
+                  {user?.firstName} {user?.lastName}
+                </p>
+                <p className="text-xs text-gray-500 truncate">
+                  {getRoleDisplayName(user?.role)}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center justify-center px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+            >
+              <LogOut size={16} className="mr-2" />
+              Logout
+            </button>
+          </div>
         </div>
       </aside>
 
       {/* Main content */}
       <div className="lg:ml-64">
-        {/* Mobile menu button */}
-        <div className="lg:hidden fixed top-4 left-4 z-10">
+        {/* Top bar */}
+        <header className="h-16 bg-white shadow-sm flex items-center justify-between px-6 sticky top-0 z-20">
           <button
             onClick={() => setSidebarOpen(true)}
-            className="p-2 bg-white rounded-lg shadow-lg hover:bg-gray-100"
+            className="lg:hidden p-2 rounded-lg hover:bg-gray-100"
           >
             <Menu size={24} />
           </button>
-        </div>
+          
+          <div className="flex items-center">
+            <h2 className="text-lg font-semibold text-gray-800">
+              {navigation.find(n => isActive(n.href))?.name || 
+               navigation.flatMap(n => n.children || []).find(c => isActive(c.href))?.name || 
+               'StockMaster IMS'}
+            </h2>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <span className="text-sm text-gray-600 hidden sm:block">
+              {new Date().toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+              })}
+            </span>
+          </div>
+        </header>
 
         {/* Page content */}
-        <main>
+        <main className="p-6">
           <Outlet />
         </main>
       </div>
@@ -173,4 +266,3 @@ const MainLayout = () => {
 };
 
 export default MainLayout;
-
